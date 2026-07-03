@@ -47,6 +47,17 @@ app.get("/view", (req, res) => {
   });
 });
 
+app.post("/delete", (req, res) => {
+  console.log(req.body); //undefined >
+  const { id } = req.body;
+
+  const sqlQuery = "DELETE FROM board WHERE id=?;";
+  db.query(sqlQuery, [id], (err, result) => {
+    if (err) throw err;
+    res.send(result);
+  });
+});
+
 app.post("/write", (req, res) => {
   console.log(req.body); //undefined >
   const { title, name, content } = req.body;
