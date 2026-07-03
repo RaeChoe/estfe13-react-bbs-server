@@ -57,6 +57,16 @@ app.post("/delete", (req, res) => {
     res.send(result);
   });
 });
+app.post("/deleteselect", (req, res) => {
+  console.log(req.body);
+  const { boardIdList } = req.body;
+
+  const sqlQuery = `DELETE FROM board WHERE id in (${boardIdList});`;
+  db.query(sqlQuery, (err, result) => {
+    if (err) throw err;
+    res.send(result);
+  });
+});
 
 app.post("/write", (req, res) => {
   console.log(req.body); //undefined >
