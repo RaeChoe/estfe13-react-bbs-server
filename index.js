@@ -4,8 +4,8 @@ const app = express();
 const mysql = require("mysql2");
 const port = 3000;
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true })); //json->object
+app.use(express.json()); //json-> object
+app.use(express.urlencoded({ extended: true })); //html form -> object
 
 let corsOptions = {
   origin: "*",
@@ -25,6 +25,7 @@ db.connect();
 app.get("/", (req, res) => {
   res.send("Hello World!");
 });
+
 app.get("/list", (req, res) => {
   const sqlQuery =
     "SELECT id, title, content, writer, DATE_FORMAT(date, '%Y-%m-%d') AS date FROM board;";
@@ -34,12 +35,35 @@ app.get("/list", (req, res) => {
   });
 });
 
+app.get("/view", (req, res) => {
+  console.log(req.query.id); //view?id
+  const id = req.query.id;
+  // const sqlQuery = `SELECT * FROM board WHERE id=${req.query.id};`;
+  const sqlQuery =
+    "SELECT title, content, writer, DATE_FORMAT(date, '%Y-%m-%d') AS date FROM board WHERE id=?;";
+  db.query(sqlQuery, [id], (err, result) => {
+    if (err) throw err;
+    res.send(result);
+  });
+});
+
 app.post("/write", (req, res) => {
-  console.log(req.body);
+  console.log(req.body); //undefined >
   const { title, name, content } = req.body;
 
   const sqlQuery = "insert into board (title,content,writer) values (?,?,?);";
   db.query(sqlQuery, [title, name, content], (err, result) => {
+    if (err) throw err;
+    res.send(result);
+  });
+});
+
+app.post("/update", (req, res) => {
+  console.log(req.body); //undefined >
+  const { name, title, content, id } = req.body;
+
+  const sqlQuery = "update board set writer=?, title=?, content=? where id=?;";
+  db.query(sqlQuery, [title, name, content, id], (err, result) => {
     if (err) throw err;
     res.send(result);
   });
