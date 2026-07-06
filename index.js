@@ -3,6 +3,7 @@ const cors = require("cors");
 const app = express();
 const mysql = require("mysql2");
 const port = 3000;
+const multer = require("multer");
 
 app.use(express.json()); //json-> object
 app.use(express.urlencoded({ extended: true })); //html form -> object
@@ -12,6 +13,19 @@ let corsOptions = {
 };
 
 app.use(cors(corsOptions));
+
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, "uploads/");
+  },
+  filename: function (req, file, cb) {
+    const originalExt = file.originalname.split(".")[1];
+    const uniquePrefix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(null, uniquePrefix + "-" + file.fieldname + "." + originalExt);
+  },
+});
+
+const upload = multer({ storage: storage });
 
 const db = mysql.createConnection({
   host: "localhost",
@@ -68,12 +82,13 @@ app.post("/deleteselect", (req, res) => {
   });
 });
 
-app.post("/write", (req, res) => {
-  console.log(req.body); //undefined >
-  const { title, name, content } = req.body;
+app.post("/write", upload.single("image"), (req, res) => {
+  console.log(req.body);
+  const { title, writer, content } = req.body;
+  const imagePath = req.file ? req.file.path : null; //req.file.path는 업로드된 파일의 경로
 
-  const sqlQuery = "insert into board (title,content,writer) values (?,?,?);";
-  db.query(sqlQuery, [title, name, content], (err, result) => {
+  const sqlQuery = "insert into board (title,content,writer,image_path) values (?,?,?,?);";
+  db.query(sqlQuery, [title, content, writer, imagePath], (err, result) => {
     if (err) throw err;
     res.send(result);
   });
