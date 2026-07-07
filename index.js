@@ -4,6 +4,8 @@ const app = express();
 const mysql = require("mysql2");
 const port = 3000;
 const multer = require("multer");
+const fs = require("fs");
+const path = require("path");
 
 app.use(express.json()); //json-> object
 app.use(express.urlencoded({ extended: true })); //html form -> object
@@ -22,7 +24,7 @@ const storage = multer.diskStorage({
   },
   filename: function (req, file, cb) {
     const originalExt = file.originalname.split(".")[1];
-    const uniquePrefix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    const uniquePrefix = Date.now() + "-" + Math.round(Math.random() * 1000);
     cb(null, uniquePrefix + "-" + file.fieldname + "." + originalExt);
   },
 });
@@ -72,6 +74,18 @@ app.get("/view", (req, res) => {
   });
 });
 
+app.post("/write", upload.single("image"), (req, res) => {
+  console.log(req.body);
+  const { title, writer, content } = req.body;
+  const imagePath = req.file ? req.file.path : null; //req.file.path는 업로드된 파일의 경로
+
+  const sqlQuery = "insert into board (title,content,writer,image_path) values (?,?,?,?);";
+  db.query(sqlQuery, [title, content, writer, imagePath], (err, result) => {
+    if (err) throw err;
+    res.send(result);
+  });
+});
+
 app.post("/delete", (req, res) => {
   console.log(req.body); //undefined >
   const { id } = req.body;
@@ -91,21 +105,19 @@ app.post("/delete", (req, res) => {
 app.post("/deleteselect", (req, res) => {
   console.log(req.body);
   const { boardIdList } = req.body;
+  //서버에서 여러 이미지 삭제
+  db.query(`SELECT image_path FROM board WHERE id in (${boardIdList})`, (err, result) => {
+    if (err) throw err;
+    if (result && result.length > 0) {
+      result.forEach(item => {
+        deleteUploadedFile(item.image_path);
+      });
+    }
+  });
 
+  //테이블에서 글 여러개 삭제
   const sqlQuery = `DELETE FROM board WHERE id in (${boardIdList});`;
   db.query(sqlQuery, (err, result) => {
-    if (err) throw err;
-    res.send(result);
-  });
-});
-
-app.post("/write", upload.single("image"), (req, res) => {
-  console.log(req.body);
-  const { title, writer, content } = req.body;
-  const imagePath = req.file ? req.file.path : null; //req.file.path는 업로드된 파일의 경로
-
-  const sqlQuery = "insert into board (title,content,writer,image_path) values (?,?,?,?);";
-  db.query(sqlQuery, [title, content, writer, imagePath], (err, result) => {
     if (err) throw err;
     res.send(result);
   });
@@ -124,6 +136,13 @@ app.post("/update", upload.single("image"), (req, res) => {
   if (shouldRemoveImage && !imagePath) {
     //이미지 삭제 요청 O + 새이미지 X ->기존이미지 제거, image_path 값 비우기
     //서버에서 기존이미지 삭제
+
+    //글 번호 삭제할 이미지의 경로 파악
+    db.query("SELECT image_path FROM board WHERE id=?", [id], (err, result) => {
+      if (err) throw err;
+      const existingImagePath = result[0] ? result[0].image_path : null;
+      deleteUploadedFile(existingImagePath);
+    });
 
     sqlQuery = "UPDATE board SET writer=?, title=?, content=?, image_path=NULL WHERE id=?";
     params = [writer, title, content, id];
